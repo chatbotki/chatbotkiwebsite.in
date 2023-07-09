@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat with Search Engine</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.3/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gradient-to-r from-purple-500 to-indigo-500">
+    <header class="text-center py-5">
+      <h1 class="text-4xl text-white font-bold">Chat with Search Engine</h1>
+      <p class="text-xl text-white">Ask me anything and get accurate answers!</p>
+    </header>
+    
+    <div class="flex justify-center">
+      <div class="px-2 w-full max-w-2xl">
+        <div id="chatbox" class="flex flex-col items-start space-y-4 overflow-y-auto h-80 bg-white p-4 rounded-lg"></div>
+        <div class="flex flex-row my-5">
+          <input
+            class="shadow flex-grow rounded p-2 mr-2 text-black"
+            id="messageInput"
+            type="text"
+            placeholder="Type your message here..."
+          />
+          <button
+            class="bg-indigo-700 rounded py-2 px-4 text-white font-bold"
+            id="sendButton"
+          >
+            Search
+          </button>
+        </div>
+        
+        <div class="text-center">
+          <p class="text-white text-lg">Advanced Search Options</p>
+          <form id="optionForm" class="flex flex-col items-center space-y-2">
+            <!-- Add other option elements here -->
+            <label class="flex items-center gap-2">
+              <input class="form-checkbox" id="imagesOnly" type="checkbox" />
+              <span class="text-white text-sm">Search for images only</span>
+            </label>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const chatbox = document.getElementById("chatbox");
+      const messageInput = document.getElementById("messageInput");
+      const sendButton = document.getElementById("sendButton");
+      const optionForm = document.getElementById("optionForm");
+      const imagesOnly = document.getElementById("imagesOnly");
+      const chatId = crypto.randomUUID();
+      
+      let receiving = false;
+      const systemPrompt = "You are an intelligent search engine like Google, providing accurate and relevant information to user queries.";
+
+      function createMessageElement(text, alignment) {
+        const messageElement = document.createElement("div");
+
+        messageElement.className = `inline-block my-2.5 p-2.5 rounded ${
+          alignment === "left" ? "bg-blue-200" : "bg-purple-300"
+        } ${alignment === "left" ? "self-start" : "self-end"}`;
+        messageElement.textContent = text;
+        return messageElement;
+      }
+
+      function connectWebSocket(message) {
+        receiving = true;
+        const url = "wss://backend.buildpicoapps.com/api/chatbot/chat";
+        const websocket = new WebSocket(url);
+
+        websocket.addEventListener("open", () => {
+          websocket.send(
+            JSON.stringify({
+              chatId: chatId,
+              appId: "that-else",
+              systemPrompt: systemPrompt,
+              message: message,
+              options: {
+                imagesOnly: imagesOnly.checked
+              }
+            })
+          );
+        });
+
+        const messageElement = createMessageElement("", "left");
+        chatbox.appendChild(messageElement);
+
+        websocket.onmessage = (event) => {
+          messageElement.textContent += event.data;
+          chatbox.scrollTop = chatbox.scrollHeight;
+        };
+
+        websocket.onclose = (event) => {
+          if (event.code === 1000) {
+            receiving = false;
+          } else {
+            messageElement.textContent += "Error getting response from server. Refresh the page and try again.";
+            chatbox.scrollTop = chatbox.scrollHeight;
+            receiving = false;
+          }
+        };
+      }
+      
+      sendButton.addEventListener("click", () => {
+        if (!receiving && messageInput.value.trim() !== "") {
+          const messageText = messageInput.value.trim();
+          messageInput.value = "";
+          const messageElement = createMessageElement(messageText, "right");
+          chatbox.appendChild(messageElement);
+          chatbox.scrollTop = chatbox.scrollHeight;
+
+          connectWebSocket(messageText);
+        }
+      });
+
+      messageInput.addEventListener("keydown", (event) => {
+        if (
+          event.key === "Enter" &&
+          !receiving &&
+          messageInput.value.trim() !== ""
+        ) {
+          event.preventDefault();
+          sendButton.click();
+        }
+      });
+
+      optionForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+      });
+    </script>
+  </body>
+</html
